@@ -31,7 +31,7 @@ def authorize(name, len_r=4, len_b=4, alpha=2):
     print("U_second_un:", U_second_un)
  
     stego_img = io.imread(f'embeding_noise/{name}.png')
-    I = Image.open(f'image/{name}.tiff').convert('RGB')
+    I = Image.open(f'processed_image/{name}.png').convert('RGB')
     I = np.array(I)
     authentication_code = hash_all_pixel(stego_img,len_r,len_b) 
     gray_img = rgb2gray(stego_img)
