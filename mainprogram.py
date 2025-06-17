@@ -1,6 +1,9 @@
 import cv2
+import csv
 import numpy as np
 from invert_LSB_module import *
+import os
+from skimage import io
 #####[論文主程式]---------
 def hong_method(img,len_r,len_b,alpha):
     gray_img = rgb2gray(img)
@@ -61,7 +64,7 @@ def hong2023_main(img,len_r,len_b):
     return  new_img.astype(np.uint8),hong2023_embedded_num,heyhey
 
 #####[Propose主程式]---------
-def propose_main(img,len_r,len_b,alpha):
+def propose_main(name,img,len_r,len_b,alpha):
     gray_img = rgb2gray(img)
     img_divid4 = img//4*4#去除1,2的LSB(除以4)
     bin_matrix = dec2bin(img)
@@ -85,6 +88,20 @@ def propose_main(img,len_r,len_b,alpha):
             if proposed_unsolvable_case(img[i][j],i*gray_img.shape[1]+j+1,len_bb=len_bb)==None:
                 U_second_un.append(gray_img[i][j])
     U_second_un = list(set(U_second_un))
+    
+    max_len = max(len(U_second), len(U_second_un))
+    U_second += [""] * (max_len - len(U_second))
+    U_second_un += [""] * (max_len - len(U_second_un))
+    
+    #輸出U_sendond和U_second_un到csv
+    os.makedirs('list', exist_ok=True) 
+    csv_filename = f"list/{name}.csv"
+    with open(csv_filename, mode='w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow(["usecond", "usecondun"])
+        for u, uu in zip(U_second, U_second_un):
+            writer.writerow([u, uu])
+        
     # print(f'{U_second=}')
     # print(f'{U_second_un=}')
     #embedding第一種方法使用lsb顛倒 第二種方法使用len_bb=(len_r+len_b)//2 and 2
@@ -107,5 +124,7 @@ def propose_main(img,len_r,len_b,alpha):
     
 
     # print('Proposed unsolvable pixel(len_r+len_b)/2:',tmp,'len2=',tmp1)
-    
+    dir_name = 'processed_image'
+    os.makedirs(dir_name, exist_ok=True) 
+    io.imsave(f'{dir_name}/{name}.png', second_matrix.astype(np.uint8))
     return  second_matrix.astype(np.uint8),proposed_embedded_num
