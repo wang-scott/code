@@ -345,12 +345,12 @@ def gggg(pixel,ii,alpha):  #和generate_perturbed_pairs差別在於b and b+3皆�
     for dg in range(-alpha, alpha + 1):
         for dr in range(-alpha, alpha + 1):
             for db in range(-alpha, alpha + 1):
-                perturbed_g = int(g) + dg
-                perturbed_r = int(r) + dr
-                perturbed_b = int(bb)+ db*4
-                if 0 <= perturbed_b <= 255 and 0 <= perturbed_g <= 255 and 0 <= perturbed_r <= 255:
-                    if round(0.299*perturbed_r+0.587*perturbed_g+0.114*perturbed_b)==grayscale:    
-                        perturbed_pairs.append((perturbed_b,perturbed_g, perturbed_r))
+                perturbed_g = g + dg
+                perturbed_r = r + dr
+                perturbed_b = bb+ db*4
+                #if 0 <= perturbed_b <= 255 and 0 <= perturbed_g <= 255 and 0 <= perturbed_r <= 255:
+                if round(0.299*perturbed_r+0.587*perturbed_g+0.114*perturbed_b)==grayscale:    
+                    perturbed_pairs.append((perturbed_b,perturbed_g, perturbed_r))
     perturbed_pairs = [pair for pair in perturbed_pairs if all(val >= 0  for val in pair)]
     acc_unsolvable=[]
     new=np.array(perturbed_pairs)

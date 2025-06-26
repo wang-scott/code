@@ -26,65 +26,89 @@ def authorize(name, len_r=4, len_b=4, alpha=2):
                 U_second.append(int(row[0]))
             if row[1].strip() != "":
                 U_second_un.append(int(row[1]))
-                
+    authentication_code = []
+    ac = []
+    with open('authentication_code.csv', mode='r', encoding='utf-8') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            ac.append(row)
+            
     print("U_second:", U_second)
     print("U_second_un:", U_second_un)
  
     stego_img = io.imread(f'embeding_noise/{name}.png')
     I = Image.open(f'processed_image/{name}.png').convert('RGB')
     I = np.array(I)
-    authentication_code = hash_all_pixel(stego_img,len_r,len_b) 
+    origin_image = np.array(Image.open(f'image/{name}.tiff').convert('RGB'))
+    authentication_code = hash_all_pixel(origin_image,len_r,len_b) 
     gray_img = rgb2gray(stego_img)
     bin_matrix = dec2bin(stego_img)
-
+    # ac = np.array(ac)
+    # if ac == authentication_code:
+    #     print('identical')
+    # else:
+    #     print('not identical')
     len_bb = (len_r + len_b) // 2
 
     # 開始驗證
     detected_error = 0
     divid4 = (stego_img//(2**len_r))*(2**len_r)
-    
+    count1 = count2 = count3 = 0
     for i in range(stego_img.shape[0]):
         for j in range(stego_img.shape[1]):
             ii = i * stego_img.shape[1] + j + 1
             detect_image[i][j] = (0, 0, 0)
             flag = True
             if gray_img[i][j] in U_second_un:
+                count1 += 1
                 ac1 = bin_matrix[i][j][2][6:] #取出的驗證碼
                 ac2 = dec2bin(gggg(stego_img[i][j], ii, alpha))[2][6:] #算出的驗證碼
                 if ac1 == ac2:
                     detect_image[i][j] = (255, 255, 255) 
                     flag = False   
             elif gray_img[i][j] in U_second:
+                count2 += 1
                 ac1 = bin_matrix[i][j][2][8-len_bb:] 
                 ac2 = dec2bin(proposed_unsolvable_case(stego_img[i][j], ii, len_bb))[2][8-len_bb:]
                 if ac1 == ac2:
                     detect_image[i][j] = (255, 255, 255)
                     flag = False
             else:
-                a = int(Embedding(bin_matrix[i][j][2],authentication_code[i][j][:len_r],length=len_r),2)#red
-                b = int(Embedding(bin_matrix[i][j][2],authentication_code[i][j][:len_r],1,length=len_r),2)#red
-                ac_b = eee(a,b,stego_img[i][j][2])
-                c = int(Embedding(bin_matrix[i][j][0],authentication_code[i][j][len_r:],length=len_b),2)#blue
-                d = int(Embedding(bin_matrix[i][j][0],authentication_code[i][j][len_r:],1,length=len_b),2)#blue
-                ac_r = eee(c,d,stego_img[i][j][0])
+                count3 += 1
+                a = Embedding(bin_matrix[i][j][2],authentication_code[i][j][:len_r],length=len_r)
+                origin_a = int(Embedding(dec2bin(origin_image[i][j])[2],authentication_code[i][j][:len_r],length=len_r),2)
+                b = Embedding(bin_matrix[i][j][2],authentication_code[i][j][:len_r],1,length=len_r)
+                origin_b = int(Embedding(dec2bin(origin_image[i][j])[2],authentication_code[i][j][:len_r],1,length=len_r),2)
+                ac_b = eee(origin_a,origin_b,stego_img[i][j][2])
+                c = Embedding(bin_matrix[i][j][0],authentication_code[i][j][len_r:],length=len_b)
+                origin_c = int(Embedding(dec2bin(origin_image[i][j])[0],authentication_code[i][j][len_r:],length=len_b),2)
+                d = Embedding(bin_matrix[i][j][0],authentication_code[i][j][len_r:],1,length=len_b)
+                origin_d = int(Embedding(dec2bin(origin_image[i][j])[0],authentication_code[i][j][len_r:],1,length=len_b),2)
+                ac_r = eee(origin_c,origin_d,stego_img[i][j][0])
 
-                current_r = int(bin_matrix[i][j][0],2)
-                current_b = int(bin_matrix[i][j][2],2)
-                if ac_r == current_r and ac_b == current_b:
+                current_r = bin_matrix[i][j][0][len_r:]
+                current_b = bin_matrix[i][j][2][len_b:]
+                if (c[len_r:] == current_r or d[len_r:] == current_r)  and (a[len_b:] == current_b or b[len_b:] == current_b):
                     detect_image[i][j] = (255, 255, 255)
                     flag = False
+                # if not flag:
+                #     if (I[i,j] != stego_img[i,j]).any():
+                #         print(f"像素驗證錯誤：位置 ({i}, {j})")
+                #         raise RuntimeError(f"像素驗證錯誤：位置 ({i}, {j})")
+            #assert flag == False,"error"
             if flag:
                 detected_error += 1
 
+    print(f"Detected error: {detected_error}")
+    print(f"Count1: {count1}, Count2: {count2}, Count3: {count3}")
     diff_pixels = 0
     for i in range(I.shape[0]):
         for j in range(I.shape[1]):
-            if(I[i,j] != stego_img[i,j]).any():
+            if(I[i,j] != np.array(stego_img[i,j])).any():
                diff_pixels+=1 
-               
+
     accuracy = detected_error/diff_pixels
     print(f"Detected error: {detected_error}, Actual error: {diff_pixels}, Accuracy: {accuracy}")
-    io.imshow(detect_image.astype(np.uint8))
     return detected_error
     
 def embeding(image,n):
@@ -113,8 +137,9 @@ if __name__ == "__main__":
     # 開啟影像並轉換為 NumPy 陣列
     
     image = np.array(Image.open('image/jet.tiff'))
-    name = 'jet'
-    # Stego, _ = mainprogram.propose_main(name,image, 4, 4, 2)
-    # error_image = embeding(Stego, 'jet')
-    # io.imsave(f'embeding_noise/{name}.png', error_image.astype(np.uint8))
+    name = 'bean'
+    Stego, _ = mainprogram.propose_main(name,image, 4, 4, 2)
+    Stego = np.array(Image.open(f'processed_image/{name}.png').convert('RGB'))
+    error_image = embeding(Stego, 'rock')
+    io.imsave(f'embeding_noise/{name}.png', error_image.astype(np.uint8))
     authorize(name)

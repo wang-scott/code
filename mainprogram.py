@@ -68,7 +68,11 @@ def propose_main(name,img,len_r,len_b,alpha):
     gray_img = rgb2gray(img)
     img_divid4 = img//4*4#去除1,2的LSB(除以4)
     bin_matrix = dec2bin(img)
-    authentication_code = hash_all_pixel(img,len_r,len_b) 
+    authentication_code = hash_all_pixel(img,len_r,len_b)
+    with open('authentication_code.csv', mode='w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerows(code for code in authentication_code)
+        
     second_matrix = np.zeros((img.shape)) 
     proposed_embedded_num = 0 
     len_bb= (len_b+len_r)//2
