@@ -5,11 +5,11 @@ from invert_LSB_module import *
 import os
 from skimage import io
 #####[論文主程式]---------
-def hong_method(img,len_r,len_b,alpha):
+def hong_method(img,len_r,len_b,alpha,authentication_code):
     gray_img = rgb2gray(img)
     img_divid4 = img//4*4#去除1,2的LSB(除以4)
     bin_matrix = dec2bin(img)
-    authentication_code = hash_all_pixel(img,len_r,len_b) 
+    # authentication_code = hash_all_pixel(img,len_r,len_b) 
     embedded_matrix = np.zeros((img.shape)) 
     hong_embedded_num = 0
     for i in range(bin_matrix.shape[0]):
