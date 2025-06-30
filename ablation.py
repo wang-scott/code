@@ -29,10 +29,6 @@ def ablation(name,img,len_r,len_b,alpha):
     img_divid4 = img//4*4#去除1,2的LSB(除以4)
     bin_matrix = dec2bin(img)
     authentication_code = hash_all_pixel(img,len_r,len_b)
-    with open('authentication_code.csv', mode='w', newline='', encoding='utf-8') as file:
-        writer = csv.writer(file)
-        writer.writerows(code for code in authentication_code)
-        
     second_matrix = np.zeros((img.shape)) 
     proposed_embedded_num = 0 
     len_bb= (len_b+len_r)//2
@@ -91,16 +87,16 @@ def ablation(name,img,len_r,len_b,alpha):
     dir_name = 'ablation_test_image'
     os.makedirs(dir_name, exist_ok=True) 
     io.imsave(f'{dir_name}/{name}.png', second_matrix.astype(np.uint8))
+    psnr = cal_PSNR(name,'ablation_test_image')
     return  second_matrix.astype(np.uint8),proposed_embedded_num
 
 lr = 4
-imagelist = [os.path.splitext(name)[0] for name in os.listdir('image')]
-sublist = imagelist[6:8]
+imagelist = ['tree']
 
-for name in sublist:
+for name in imagelist:
     result = []
     for lr in [2, 3, 4]:
-        image = np.array(Image.open(f'image/{name}.tiff'),np.uint8)
+        image = np.array(Image.open(f'image/{name}.tiff').convert('RGB'))
         Stego, payload = ablation(name, image, lr, lr, 2)
         psnr = cal_PSNR(name, 'ablation_test_image')
         result.append({

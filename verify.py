@@ -6,111 +6,84 @@ import random
 from skimage import io
 from invert_LSB_module import *
 import os
+import cv2
 
-def authorize(name, len_r=4, len_b=4, alpha=2):
-    # 初始化陣列
-    U_second = []
-    U_second_un = []
-    detect_image = np.zeros((512, 512, 3))
-    # 指定 CSV 檔案名稱
-    csv_filename = f'list/{name}.csv'
-    
-    # 從 CSV 檔案讀取資料
-    with open(csv_filename, mode='r', newline='', encoding='utf-8') as file:
-        reader = csv.reader(file)
-        # 跳過表頭
-        next(reader)
-        # 將資料放入陣列
-        for row in reader:
-            if row[0].strip() != "":
-                U_second.append(int(row[0]))
-            if row[1].strip() != "":
-                U_second_un.append(int(row[1]))
-    authentication_code = []
-    ac = []
-    with open('authentication_code.csv', mode='r', encoding='utf-8') as file:
-        reader = csv.reader(file)
-        for row in reader:
-            ac.append(row)
+def generateU(img,len_r,len_b):
+    bin_matrix = dec2bin(img)
+    gray_img = rgb2gray(img)
+    authentication_code = hash_all_pixel(img,len_r,len_b)   
+
+    second_matrix = np.zeros((img.shape)) 
+    for i in range(bin_matrix.shape[0]):
+        for j in range(bin_matrix.shape[1]):
+            a = int(Embedding(bin_matrix[i][j][2],authentication_code[i][j][:len_r],length=len_r),2)#red
+            b = int(Embedding(bin_matrix[i][j][2],authentication_code[i][j][:len_r],1,length=len_r),2)#red
+            second_matrix[i][j][2] = eee(a,b,img[i][j][2])
+            c = int(Embedding(bin_matrix[i][j][0],authentication_code[i][j][len_r:],length=len_b),2)#blue
+            d = int(Embedding(bin_matrix[i][j][0],authentication_code[i][j][len_r:],1,length=len_b),2)#blue
+            second_matrix[i][j][0] = eee(c,d,img[i][j][0])
             
-    print("U_second:", U_second)
-    print("U_second_un:", U_second_un)
+    U_second = cal_green(second_matrix,gray_img)
+    U_second_un=[]
+    for target in U_second:
+        results = find_all_values(gray_img, target)
+        for i,j in results:
+            if proposed_unsolvable_case(img[i][j],i*gray_img.shape[1]+j+1,len_bb=4)==None:
+                U_second_un.append(gray_img[i][j])
+    U_second_un = list(set(U_second_un))
+    return U_second,U_second_un
+
+def authorize(origin,img,len_r,len_b):
+    U_second,U_second_un = generateU(origin,len_r,len_b)
+    # U_second=[]
+    # U_second_un=[]
  
-    stego_img = io.imread(f'embeding_noise/{name}.png')
-    I = Image.open(f'processed_image/{name}.png').convert('RGB')
-    I = np.array(I)
-    origin_image = np.array(Image.open(f'image/{name}.tiff').convert('RGB'))
-    authentication_code = hash_all_pixel(origin_image,len_r,len_b) 
-    gray_img = rgb2gray(stego_img)
-    bin_matrix = dec2bin(stego_img)
-    # ac = np.array(ac)
-    # if ac == authentication_code:
-    #     print('identical')
-    # else:
-    #     print('not identical')
-    len_bb = (len_r + len_b) // 2
+    bin_matrix = dec2bin(img)
+    gray_img = rgb2gray(img)
 
-    # 開始驗證
-    detected_error = 0
-    divid4 = (stego_img//(2**len_r))*(2**len_r)
-    count1 = count2 = count3 = 0
-    for i in range(stego_img.shape[0]):
-        for j in range(stego_img.shape[1]):
-            ii = i * stego_img.shape[1] + j + 1
-            detect_image[i][j] = (0, 0, 0)
-            flag = True
+    new_auth_code = hash_all_pixel(img,len_r,len_b) 
+    len_bb = (len_b+len_r)//2
+
+    embedded_tamper_matrix = np.zeros((img.shape)).astype(np.uint8) 
+    aaa,bbb,ccc=0,0,0
+    for i in range(img.shape[0]):
+        if i%50 == 0:
+            print(i)
+        for j in range(img.shape[1]):
+            ii = i*gray_img.shape[1]+j+1
             if gray_img[i][j] in U_second_un:
-                count1 += 1
-                ac1 = bin_matrix[i][j][2][6:] #取出的驗證碼
-                ac2 = dec2bin(gggg(stego_img[i][j], ii, alpha))[2][6:] #算出的驗證碼
-                if ac1 == ac2:
-                    detect_image[i][j] = (255, 255, 255) 
-                    flag = False   
-            elif gray_img[i][j] in U_second:
-                count2 += 1
-                ac1 = bin_matrix[i][j][2][8-len_bb:] 
-                ac2 = dec2bin(proposed_unsolvable_case(stego_img[i][j], ii, len_bb))[2][8-len_bb:]
-                if ac1 == ac2:
-                    detect_image[i][j] = (255, 255, 255)
-                    flag = False
-            else:
-                count3 += 1
-                a = Embedding(bin_matrix[i][j][2],authentication_code[i][j][:len_r],length=len_r)
-                origin_a = int(Embedding(dec2bin(origin_image[i][j])[2],authentication_code[i][j][:len_r],length=len_r),2)
-                b = Embedding(bin_matrix[i][j][2],authentication_code[i][j][:len_r],1,length=len_r)
-                origin_b = int(Embedding(dec2bin(origin_image[i][j])[2],authentication_code[i][j][:len_r],1,length=len_r),2)
-                ac_b = eee(origin_a,origin_b,stego_img[i][j][2])
-                c = Embedding(bin_matrix[i][j][0],authentication_code[i][j][len_r:],length=len_b)
-                origin_c = int(Embedding(dec2bin(origin_image[i][j])[0],authentication_code[i][j][len_r:],length=len_b),2)
-                d = Embedding(bin_matrix[i][j][0],authentication_code[i][j][len_r:],1,length=len_b)
-                origin_d = int(Embedding(dec2bin(origin_image[i][j])[0],authentication_code[i][j][len_r:],1,length=len_b),2)
-                ac_r = eee(origin_c,origin_d,stego_img[i][j][0])
+                # tt = generate_perturbed_pairs(img[i][j],ii,alpha)!= img[i][j]
+                # if True in tt :
+                #     embedded_tamper_matrix[i][j]=255
+                b,g,r = img[i][j] 
+                tt = hash_unsolvable(ii,gray_img[i][j],r,g,b//4*4,2)
+                if b != int(Embedding(str(dec2bin(b)),tt,length=2),2):
+                    embedded_tamper_matrix[i][j]=255
+                    aaa+=1
+            elif gray_img[i][j] in U_second :
+                # tt = proposed_unsolvable_case(img[i][j],ii,len_bb) != img[i][j]
+                # if True in tt  :
+                #     embedded_tamper_matrix[i][j]=255
+                b,g,r = img[i][j]
+                tt = proposed_hash_unsolvable(ii,gray_img[i][j],(b//(2**len_bb))*(2**len_bb),len_bb)
+                if b != int(Embedding(str(dec2bin(b)),tt,length=len_bb),2):
+                    embedded_tamper_matrix[i][j]=255
+                    bbb+=1
+                    # print(b,int(Embedding(str(dec2bin(b)),tt,length=len_bb),2))
+            else :
+                a = int(Embedding(bin_matrix[i][j][2],new_auth_code[i][j][:len_r],length=len_r),2)#red
+                b = int(Embedding(bin_matrix[i][j][2],new_auth_code[i][j][:len_r],1,length=len_r),2)#red
+                c = int(Embedding(bin_matrix[i][j][0],new_auth_code[i][j][len_r:],length=len_b),2)#blue
+                d = int(Embedding(bin_matrix[i][j][0],new_auth_code[i][j][len_r:],1,length=len_b),2)#blue
+                rr = eee(a,b,img[i][j][2])
+                bb = eee(c,d,img[i][j][0])             
+                if  img[i][j][2]!=rr or img[i][j][0]!=bb :
+                    embedded_tamper_matrix[i][j]=255
+                    ccc+=1
+                    # print(origin[i][j],img[i][j],new_auth_code[i][j],origin_auth_code[i][j])
+    print(aaa,bbb,ccc)
+    return embedded_tamper_matrix, aaa+bbb+ccc   
 
-                current_r = bin_matrix[i][j][0][len_r:]
-                current_b = bin_matrix[i][j][2][len_b:]
-                if (c[len_r:] == current_r or d[len_r:] == current_r)  and (a[len_b:] == current_b or b[len_b:] == current_b):
-                    detect_image[i][j] = (255, 255, 255)
-                    flag = False
-                # if not flag:
-                #     if (I[i,j] != stego_img[i,j]).any():
-                #         print(f"像素驗證錯誤：位置 ({i}, {j})")
-                #         raise RuntimeError(f"像素驗證錯誤：位置 ({i}, {j})")
-            #assert flag == False,"error"
-            if flag:
-                detected_error += 1
-
-    print(f"Detected error: {detected_error}")
-    print(f"Count1: {count1}, Count2: {count2}, Count3: {count3}")
-    diff_pixels = 0
-    for i in range(I.shape[0]):
-        for j in range(I.shape[1]):
-            if(I[i,j] != np.array(stego_img[i,j])).any():
-               diff_pixels+=1 
-
-    accuracy = detected_error/diff_pixels
-    print(f"Detected error: {detected_error}, Actual error: {diff_pixels}, Accuracy: {accuracy}")
-    return detected_error
-    
 def embeding(image,n):
     def noise(I,Noise):
         n_r,n_c = Noise.shape[0],Noise.shape[1]
@@ -129,17 +102,28 @@ def embeding(image,n):
     path2 = "noise/"+n+".png"
     I2=io.imread(path2)
     e = noise(I,I2)
-    io.imshow(e)
-    #io.show() 
     return e
     
 if __name__ == "__main__":
     # 開啟影像並轉換為 NumPy 陣列
+    name = 'Peppers'
+    image = np.array(Image.open(f'image/{name}.tiff').convert('RGB'))
     
-    image = np.array(Image.open('image/jet.tiff'))
-    name = 'bean'
     Stego, _ = mainprogram.propose_main(name,image, 4, 4, 2)
-    Stego = np.array(Image.open(f'processed_image/{name}.png').convert('RGB'))
-    error_image = embeding(Stego, 'rock')
-    io.imsave(f'embeding_noise/{name}.png', error_image.astype(np.uint8))
-    authorize(name)
+    Stego = np.array(Image.open(f'processed_image/{name}.png'))
+    error_image = embeding(Stego, 'tomato')
+    io.imsave(f'embeding_noise/{name}.png', error_image)
+    origin = np.array(Image.open(f'image/{name}.tiff').convert('RGB'))
+    error_image = np.array(Image.open(f'embeding_noise/{name}.png').convert('RGB'))
+    detect_image, error = authorize(origin,error_image,4,4)
+
+    actual = 0
+    processed_image = np.array(Image.open(f'processed_image/{name}.png').convert('RGB'))
+    for i in range(origin.shape[0]):
+        for j in range(origin.shape[1]):
+            if (processed_image[i][j] != error_image[i][j]).any():
+                actual += 1
+    accuracy =   error/ actual * 100
+    print(f'Error: {error}, Accuracy: {accuracy:.2f}%')
+    io.imshow(detect_image)
+    io.show()
